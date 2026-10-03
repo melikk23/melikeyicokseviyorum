@@ -6,9 +6,9 @@
 <title>Melike, benim herşeyim</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Great+Vibes&display=swap" rel="stylesheet">
 <style>
-  :root { --bg: #000; box-sizing: border-box; }
+  :root { --bg: #14050d; box-sizing: border-box; }
   html, body { height: 100%; margin: 0; background: var(--bg); overflow: hidden; touch-action: none; }
   canvas { display: block; width: 100%; height: 100%; }
 </style>
@@ -20,6 +20,8 @@ const c = document.getElementById('c');
 const g = c.getContext('2d');
 const cache = document.createElement('canvas');   // kalp ışınları bir kere çizilip burada saklanır
 const cg = cache.getContext('2d');
+const bgc = document.createElement('canvas');   // pastel pembe arka plan
+const bgg = bgc.getContext('2d');
 let W, H, S, D = 1, cached = false;
 
 function resize() {
@@ -29,6 +31,7 @@ function resize() {
   g.setTransform(D, 0, 0, D, 0, 0);
   S = Math.min(W, H) / 600;
   cached = false;
+  buildBg();
 }
 window.addEventListener('resize', resize);
 resize();
@@ -140,6 +143,7 @@ for (let i = 0; i < 45; i++) {          // kalbin içinde ve kenarında
 for (let i = 0; i < 18; i++) addGlitter(rnd(-300, 300), rnd(-280, 260), Math.random() < 0.3);
 for (let i = 0; i < 10; i++) addGlitter(rnd(-110, 110), rnd(-5, 35), false);   // "Melike" üstü
 for (let i = 0; i < 10; i++) addGlitter(rnd(-135, 135), rnd(-60, -35), false); // alt yazı üstü
+for (let i = 0; i < 12; i++) addGlitter(rnd(-170, 170), rnd(195, 285), false); // üst yazılar
 
 // Dokununca / fareyle gezinince saçılan simler
 const bursts = [];
@@ -154,6 +158,94 @@ function spawn(px, py, n) {
 }
 c.addEventListener('pointerdown', e => spawn(e.clientX, e.clientY, 14));
 c.addEventListener('pointermove', e => { if (Math.random() < 0.5) spawn(e.clientX, e.clientY, 1); });
+
+// ---------- Tatlı kedicik teması (arka plan) ----------
+function buildBg() {
+  bgc.width = c.width; bgc.height = c.height;
+  bgg.setTransform(D, 0, 0, D, 0, 0);
+  const gr = bgg.createRadialGradient(W / 2, H / 2, 0, W / 2, H / 2, Math.max(W, H) * 0.72);
+  gr.addColorStop(0, '#3d1131');
+  gr.addColorStop(1, '#12040c');
+  bgg.fillStyle = gr;
+  bgg.fillRect(0, 0, W, H);
+  // puantiyeler
+  const step = Math.max(34, 56 * S), rad = Math.max(2.5, 5 * S);
+  bgg.fillStyle = 'rgba(255,170,210,0.09)';
+  let row = 0;
+  for (let y = step / 2; y < H + step; y += step, row++) {
+    for (let x = (row % 2 ? 0 : step / 2); x < W + step; x += step) {
+      bgg.beginPath(); bgg.arc(x, y, rad, 0, 7); bgg.fill();
+    }
+  }
+}
+
+function bow(x, y, r, rot, col, a) {
+  g.save();
+  g.translate(x, y); g.rotate(rot);
+  g.globalAlpha = a;
+  g.fillStyle = col;
+  g.strokeStyle = 'rgba(140,25,70,0.7)';
+  g.lineWidth = Math.max(1, r * 0.07);
+  for (const sx of [-1, 1]) {
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.quadraticCurveTo(sx * r * 0.9, -r * 0.95, sx * r * 1.25, -r * 0.15);
+    g.quadraticCurveTo(sx * r * 1.0, r * 0.9, 0, 0);
+    g.fill(); g.stroke();
+  }
+  g.beginPath(); g.arc(0, 0, r * 0.3, 0, 7); g.fill(); g.stroke();
+  g.restore();
+}
+
+// Orijinal, sevimli bir kedicik yüzü (kurdeleli)
+function kitty(x, y, r, rot, a) {
+  g.save();
+  g.translate(x, y); g.rotate(rot);
+  g.globalAlpha = a;
+  g.lineJoin = 'round'; g.lineCap = 'round';
+  g.fillStyle = '#fff4f9'; g.strokeStyle = '#f3a6c8';
+  g.lineWidth = Math.max(1, r * 0.05);
+  for (const sx of [-1, 1]) {            // kulaklar
+    g.fillStyle = '#fff4f9';
+    g.beginPath();
+    g.moveTo(sx * r * 0.95, -r * 0.1);
+    g.quadraticCurveTo(sx * r * 1.0, -r * 1.05, sx * r * 0.35, -r * 0.8);
+    g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#ffc2dc';
+    g.beginPath();
+    g.moveTo(sx * r * 0.8, -r * 0.3);
+    g.quadraticCurveTo(sx * r * 0.85, -r * 0.8, sx * r * 0.5, -r * 0.68);
+    g.closePath(); g.fill();
+  }
+  g.fillStyle = '#fff4f9';               // yüz
+  g.beginPath(); g.ellipse(0, 0, r, r * 0.82, 0, 0, 7); g.fill(); g.stroke();
+  g.strokeStyle = '#6b2f4d';             // mutlu gözler
+  g.lineWidth = Math.max(1.5, r * 0.07);
+  for (const sx of [-1, 1]) {
+    g.beginPath(); g.arc(sx * r * 0.42, -r * 0.02, r * 0.14, Math.PI * 1.1, Math.PI * 1.9); g.stroke();
+  }
+  g.fillStyle = 'rgba(255,130,180,0.45)'; // yanaklar
+  for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * r * 0.62, r * 0.22, r * 0.16, 0, 7); g.fill(); }
+  g.fillStyle = '#ff8fbd';               // burun
+  g.beginPath(); g.ellipse(0, r * 0.12, r * 0.08, r * 0.06, 0, 0, 7); g.fill();
+  g.strokeStyle = '#6b2f4d';             // ağız
+  g.lineWidth = Math.max(1, r * 0.045);
+  for (const sx of [-1, 1]) { g.beginPath(); g.arc(sx * r * 0.08, r * 0.2, r * 0.08, 0, Math.PI); g.stroke(); }
+  bow(r * 0.52, -r * 0.74, r * 0.42, 0.25, '#ff5b97', 1);
+  g.restore();
+}
+
+// Kenarlarda duran dekorlar: kalbin ve yazıların bulunduğu orta alana girmez
+function drawDecor(t) {
+  const hw = W / 2 / S, hh = H / 2 / S;
+  const k = [[-1, 1], [1, 1], [-1, -1], [1, -1]];
+  k.forEach(([sx, sy], i) => {
+    const bob = Math.sin(t * 1.2 + i * 1.7) * 4 * S;
+    kitty(X(sx * (hw - 46)), Y(sy * (hh - 46)) + bob, 34 * S, Math.sin(t * 0.9 + i) * 0.08, 0.8);
+    bow(X(sx * (hw - 34)), Y(sy * 120) + Math.sin(t * 1.4 + i) * 3 * S, 15 * S,
+        Math.sin(t * 1.1 + i * 2) * 0.15, '#ff7fb0', 0.8);
+  });
+}
 
 const DRAW_MS = N * 20;
 let t0 = null, last = 0;
@@ -234,6 +326,34 @@ function scene(ts, dt) {
   g.fillStyle = gr;
   g.fillText(metin, X(0), Y(-55) + 2 + bob2);
   g.restore();
+
+  // Kalbin üstünde: ay dönümü mesajı (kalbi ve ortadaki yazıları kapatmaz)
+  const a3 = ease(clamp((ts - 2.6) / 1.4)), a4 = ease(clamp((ts - 3.6) / 1.4));
+  parlakYazi('Bugün 2. ayımız', 250, 46, a3, ts, 0.0, 90);
+  parlakYazi('seni çok seviyorum sevgilim', 200, 38, a4, ts, 1.6, 120);
+}
+
+function parlakYazi(txt, y, px, a, ts, ph, hiz) {
+  if (a < 0.01) return;
+  const bob = Math.sin(ts * 2.0 + ph) * 2 * S;
+  g.font = `400 ${px * S}px 'Great Vibes', 'Dancing Script', cursive`;
+  g.textAlign = 'center';
+  const tw = g.measureText(txt).width;
+  const bandX = X(0) - tw / 2 - tw * 0.2 + ((ts * hiz + ph * 40) % (tw * 1.4));
+  const gr = g.createLinearGradient(bandX - tw * 0.2, 0, bandX + tw * 0.2, 0);
+  gr.addColorStop(0, '#ff9ccb');
+  gr.addColorStop(0.5, '#fff4fa');
+  gr.addColorStop(1, '#ff9ccb');
+  g.save();
+  g.globalAlpha = a;
+  g.shadowColor = 'rgba(255,105,180,0.85)';
+  g.shadowBlur = 12 * S * (0.6 + 0.4 * Math.sin(ts * 3.2 + ph));
+  g.fillStyle = gr;
+  g.strokeStyle = gr;
+  g.lineWidth = 0.9 * S;          // ince script fontu biraz kalınlaştırır
+  g.fillText(txt, X(0), Y(y) + bob);
+  g.strokeText(txt, X(0), Y(y) + bob);
+  g.restore();
 }
 
 function frame(now) {
@@ -241,12 +361,16 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   const el = now - t0;
-  g.clearRect(0, 0, W, H);
+  g.drawImage(bgc, 0, 0, W, H);
+  drawDecor(el / 1000);
   if (el < DRAW_MS) drawSegs(g, Math.floor(el / 20) + 1);
   else scene((el - DRAW_MS) / 1000, dt);
   requestAnimationFrame(frame);
 }
-try { document.fonts.load("700 40px 'Dancing Script'", 'Melike benim herşeyim'); } catch (e) {}
+try {
+  document.fonts.load("700 40px 'Dancing Script'", 'Melike benim herşeyim');
+  document.fonts.load("40px 'Great Vibes'", 'Bugün 2. ayımız seni çok seviyorum sevgilim');
+} catch (e) {}
 requestAnimationFrame(frame);
 </script>
 </body>
