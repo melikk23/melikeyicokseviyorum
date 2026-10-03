@@ -48,37 +48,75 @@ const heartPt = u => [
   13 * (16 * Math.cos(u) - 5 * Math.cos(2 * u) - 2 * Math.cos(3 * u) - Math.cos(4 * u))
 ];
 
-// Işınlar (pembe: gül pembesinden eflatuna)
-const segs = [];
-for (let i = 0; i <= N; i++) {
-  const [x, y] = heartPt(i * Math.PI * 2 / N);
-  const sp = [];
-  for (let a = 0; a < 360; a += 45) {
-    const l = rnd(3, 7), r = a * Math.PI / 180;
-    sp.push([x + l * Math.cos(r), y + l * Math.sin(r)]);
+// Büyük kalp: "Melike'yi çok seviyorum" yazısından oluşan 6 halka (scale 11..16)
+// Yazı halkaların üzerinde kalbin çevresinde akar, böylece okunaklı kalır.
+const RING_Y = -18;               // üstteki yazılara değmesin diye biraz aşağıda
+const FS = 9;                     // harf boyutu (tasarım birimi)
+const MSG = "Melike'yi çok seviyorum \u2665 ";
+const mctx = document.createElement('canvas').getContext('2d');
+mctx.font = `bold ${FS}px Arial, sans-serif`;
+const MSGCH = Array.from(MSG);
+const CW = MSGCH.map(ch => mctx.measureText(ch).width);
+const WP = CW.reduce((u, v) => u + v, 0);
+
+const CHARS = [];                 // her harf: konum, açı, karakter (halka halka sıralı)
+for (let sc = 11; sc <= 16; sc++) {
+  const M = 1440, pts = [], cum = [0];
+  for (let j = 0; j <= M; j++) {
+    const a = j * Math.PI * 2 / M;
+    pts.push([
+      16 * Math.pow(Math.sin(a), 3) * sc,
+      (13 * Math.cos(a) - 5 * Math.cos(2 * a) - 2 * Math.cos(3 * a) - Math.cos(4 * a)) * sc + RING_Y
+    ]);
+    if (j > 0) cum.push(cum[j - 1] + Math.hypot(pts[j][0] - pts[j - 1][0], pts[j][1] - pts[j - 1][1]));
   }
-  segs.push({ x, y, sp, col: `hsl(${335 - i / N * 55}, 72%, 70%)` });
+  const L = cum[M];
+  const n = Math.max(1, Math.round(L / WP));
+  const f = L / (n * WP);         // yazı halkaya tam otursun diye aralığı hafifçe ayarla
+  let pos = 0, k = 0;
+  for (let rep = 0; rep < n; rep++) {
+    for (let ci = 0; ci < MSGCH.length; ci++) {
+      const adv = CW[ci] * f, mid = pos + adv / 2;
+      pos += adv;
+      if (MSGCH[ci] === ' ') continue;
+      while (k < M - 1 && cum[k + 1] < mid) k++;
+      const seg = cum[k + 1] - cum[k] || 1, tt = (mid - cum[k]) / seg;
+      const x = pts[k][0] + (pts[k + 1][0] - pts[k][0]) * tt;
+      const y = pts[k][1] + (pts[k + 1][1] - pts[k][1]) * tt;
+      const rot = Math.atan2(-(pts[k + 1][1] - pts[k][1]), pts[k + 1][0] - pts[k][0]);
+      CHARS.push({ x, y, rot, ch: MSGCH[ci] });
+    }
+  }
+}
+const TOTAL = CHARS.length;
+let drawn = 0;
+
+function drawPts(from, to) {
+  cg.font = `bold ${Math.max(6, FS * S)}px Arial, sans-serif`;
+  cg.textAlign = 'center';
+  cg.textBaseline = 'middle';
+  cg.fillStyle = '#ffb6c1';
+  for (let i = from; i < to; i++) {
+    const q = CHARS[i];
+    cg.save();
+    cg.translate(X(q.x), Y(q.y));
+    cg.rotate(q.rot);
+    cg.fillText(q.ch, 0, 0);
+    cg.restore();
+  }
 }
 
-function drawSegs(ctx, n) {
-  ctx.lineWidth = Math.max(1, S);
-  for (let i = 0; i < n && i < segs.length; i++) {
-    const s = segs[i];
-    ctx.strokeStyle = s.col;
-    ctx.beginPath();
-    ctx.moveTo(X(0), Y(0));
-    ctx.lineTo(X(s.x), Y(s.y));
-    for (const q of s.sp) { ctx.moveTo(X(s.x), Y(s.y)); ctx.lineTo(X(q[0]), Y(q[1])); }
-    ctx.stroke();
+// Yazılar hazır bir katmanda birikir; her karede sadece yeni harfler eklenir
+function ensureCache(target) {
+  if (!cached) {
+    cache.width = c.width; cache.height = c.height;
+    cg.setTransform(D, 0, 0, D, 0, 0);
+    cg.clearRect(0, 0, W, H);
+    drawn = 0;
+    cached = true;
   }
-}
-
-function buildCache() {
-  cache.width = c.width; cache.height = c.height;
-  cg.setTransform(D, 0, 0, D, 0, 0);
-  cg.clearRect(0, 0, W, H);
-  drawSegs(cg, N + 1);
-  cached = true;
+  target = Math.min(target, TOTAL);
+  if (drawn < target) { drawPts(drawn, target); drawn = target; }
 }
 
 // Küçük kalp
@@ -138,7 +176,7 @@ function addGlitter(x, y, big) {
 for (let i = 0; i < 45; i++) {          // kalbin içinde ve kenarında
   const [hx, hy] = heartPt(rnd(0, 6.283));
   const rad = Math.sqrt(Math.random()) * 1.05;
-  addGlitter(hx * rad, hy * rad, Math.random() < 0.3);
+  addGlitter(hx * rad * 1.55, hy * rad - 15, Math.random() < 0.3);
 }
 for (let i = 0; i < 18; i++) addGlitter(rnd(-300, 300), rnd(-280, 260), Math.random() < 0.3);
 for (let i = 0; i < 10; i++) addGlitter(rnd(-110, 110), rnd(-5, 35), false);   // "Melike" üstü
@@ -247,7 +285,7 @@ function drawDecor(t) {
   });
 }
 
-const DRAW_MS = N * 20;
+const DRAW_MS = 9000;   // kalbin çizilme süresi (ms): büyüttükçe yavaşlar
 let t0 = null, last = 0;
 
 function scene(ts, dt) {
@@ -260,8 +298,8 @@ function scene(ts, dt) {
     g.fill();
   }
 
-  // Kalp ışınları (hazır çizimden)
-  if (!cached) buildCache();
+  // Büyük kalp (hazır katmandan)
+  ensureCache(TOTAL);
   g.drawImage(cache, 0, 0, W, H);
 
   // Süzülen kalpler
@@ -363,8 +401,10 @@ function frame(now) {
   const el = now - t0;
   g.drawImage(bgc, 0, 0, W, H);
   drawDecor(el / 1000);
-  if (el < DRAW_MS) drawSegs(g, Math.floor(el / 20) + 1);
-  else scene((el - DRAW_MS) / 1000, dt);
+  if (el < DRAW_MS) {
+    ensureCache(Math.floor(el / DRAW_MS * TOTAL) + 1);
+    g.drawImage(cache, 0, 0, W, H);
+  } else scene((el - DRAW_MS) / 1000, dt);
   requestAnimationFrame(frame);
 }
 try {
